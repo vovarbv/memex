@@ -1,0 +1,9 @@
+# First install core dependencies
+-r requirements.txt
+
+# Agent-specific dependencies
+embedchain==0.1.128            # For embedding and retrieval chains
+crewai==0.114.0                # For agent-based workflows
+litellm==1.60.2                # For LLM integration
+mcp-agent==0.0.9               # For agent system
+langchain-openai>=0.2.1,<0.3.0 # Required for embedchain compatibility 

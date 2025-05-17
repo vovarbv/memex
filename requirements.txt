@@ -1,0 +1,10 @@
+# Core dependencies
+sentence-transformers==2.6.1  # For embedding text
+faiss-cpu==1.8.0              # Vector store
+tiktoken>=0.7.0,<1            # For token counting
+PyYAML>=6.0.2                 # For YAML handling (tasks, preferences)
+tomli-w>=1.1.0                # For TOML writing
+tomli>=2.0.0                  # For TOML reading
+numpy>=1.26.4,<2.0            # Pinning to NumPy 1.x for faiss compatibility
+
+# For optional agent features, install with: pip install -r requirements-agents.txt

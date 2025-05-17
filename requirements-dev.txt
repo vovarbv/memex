@@ -1,0 +1,10 @@
+# First install core dependencies
+-r requirements.txt
+
+# Development dependencies
+pytest>=7.3.1          # Testing framework
+pytest-mock>=3.10.0    # Mocking library for pytest
+pytest-cov>=4.1.0      # Coverage reporting
+black>=23.3.0          # Code formatting (optional)
+isort>=5.12.0          # Import sorting (optional)
+flake8>=6.0.0          # Linting (optional) 
