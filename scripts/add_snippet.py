@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Записывает кодовый сниппет в память.
+Saves a code snippet to memory.
 Usage:
     python scripts/add_snippet.py "print('Hello, World!')" --lang py
     python scripts/add_snippet.py --from path/to/your/file.py:20-45
@@ -14,7 +14,8 @@ import logging
 import argparse
 import uuid
 
-from memory_utils import add_or_replace, ROOT
+from memory_utils import ROOT
+from thread_safe_store import add_or_replace
 
 # ───────────────────────────────────────── Logging Setup ────
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -61,6 +62,61 @@ def load_from_file(spec: str) -> tuple[str, str | None, str | None]:
         except Exception as e:
             raise ValueError(f"Error reading file {path}: {e}")
 
+def add_snippet_logic(content: str, lang: str = "text", source_desc: str = "manual", 
+                      custom_id: str | None = None, source_file_path: str | None = None) -> str | None:
+    """
+    Core logic for adding a snippet to memory.
+    
+    Args:
+        content: The content of the snippet
+        lang: Language of the snippet (default: "text")
+        source_desc: Description of the source (default: "manual")
+        custom_id: Optional custom ID (default: generated UUID)
+        source_file_path: Optional path to source file
+    
+    Returns:
+        The ID of the added snippet, or None if addition failed
+    """
+    try:
+        if not content.strip():
+            logging.error("Attempted to add empty snippet")
+            return None
+            
+        final_lang = lang or "text"  # Default to "text"
+        formatted_snippet_for_mdc = f"```{final_lang}\n{content}\n```"
+        
+        snippet_id = custom_id or str(uuid.uuid4())
+        
+        # If source_file_path is provided but source_desc is still "manual", use the file path
+        if source_file_path and source_desc == "manual":
+            source_desc = source_file_path
+            
+        meta = {
+            "type": "snippet",
+            "text": formatted_snippet_for_mdc,  # This is what gen_memory_mdc will use
+            "raw_content": content,  # Store raw content separately if needed
+            "language": final_lang,
+            "source": source_desc,
+            "timestamp": dt.datetime.utcnow().isoformat(),
+            "id": snippet_id  # Store the ID also in metadata for easier lookup
+        }
+        
+        # The text for embedding could be just content, or include more context
+        embedding_text = f"Code snippet ({final_lang}):\n{content}"
+        
+        returned_id = add_or_replace(snippet_id, embedding_text, meta)
+        
+        if returned_id:
+            logging.info(f"Snippet stored with ID: {returned_id}")
+            return returned_id
+        else:
+            logging.error("Failed to store snippet")
+            return None
+            
+    except Exception as e:
+        logging.critical(f"An unexpected error occurred while adding snippet: {e}", exc_info=True)
+        return None
+
 
 def main():
     parser = argparse.ArgumentParser(description="Adds a code snippet to the memory.")
@@ -92,41 +148,14 @@ def main():
             return # For linters
 
         final_lang = args.lang or detected_lang or "text" # Default to "text"
-
-        # Construct the text to be embedded, often including markdown formatting
-        # The `text` field in metadata should store the raw snippet usually
-        # The text fed to `embed` might be more descriptive, e.g., "Code snippet in Python: \n actual_code"
-        # For now, let's embed the snippet content directly.
-        # If you want to store it in ```lang ... ``` format in memory.mdc, then meta["text"] should be that.
-
-        formatted_snippet_for_mdc = f"```{final_lang}\n{snippet_content}\n```"
-
-        snippet_id = args.id or str(uuid.uuid4())
-
-        meta = {
-            "type": "snippet",
-            "text": formatted_snippet_for_mdc, # This is what gen_memory_mdc will use
-            "raw_content": snippet_content, # Store raw content separately if needed
-            "language": final_lang,
-            "source": args.source or ("manual" if args.snippet_text else "file import"),
-            "timestamp": dt.datetime.utcnow().isoformat(),
-            "id": snippet_id # Store the ID also in metadata for easier lookup
-        }
-
-        # The text for embedding could be just snippet_content, or include more context
-        embedding_text = f"Code snippet ({final_lang}):\n{snippet_content}"
-
-        # Use the generated or provided snippet_id for add_or_replace
-        # Note: add_or_replace expects int for ID if it's for replacement by FAISS ID.
-        # If we use UUIDs, replacement of existing snippets by this script would require
-        # searching by UUID first, then using the FAISS int ID.
-        # For simplicity, let's assume new snippets get new FAISS IDs (by passing string ID).
-        # add_or_replace(snippet_id, embedding_text, meta) # snippet_id here will be string (UUID or custom)
-        # If add_or_replace is modified to handle string IDs for meta and generate int FAISS IDs, this is fine.
-        # The current memory_utils.add_or_replace handles string `id_` for `meta` key,
-        # and if `id_` is not int, it gets a new FAISS id (index.ntotal). This is acceptable for snippets.
-
-        returned_id = add_or_replace(snippet_id, embedding_text, meta)
+        
+        returned_id = add_snippet_logic(
+            content=snippet_content, 
+            lang=final_lang, 
+            source_desc=args.source or ("manual" if args.snippet_text else "file import"),
+            custom_id=args.id,
+            source_file_path=source_file
+        )
 
         if returned_id:
             print(f"✅ Snippet stored with ID: {returned_id}")

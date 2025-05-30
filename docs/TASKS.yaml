@@ -1,0 +1,62 @@
+tasks:
+- id: 2
+  title: Test memory tab integration
+  status: todo
+  progress: 0
+  plan:
+  - Add task via CLI
+  - Check if it appears in Memory tab
+  - Verify search functionality
+  done_steps: []
+  notes: ''
+  created_at: '2025-05-29T15:33:46.205776+00:00'
+  updated_at: '2025-05-29T15:33:46.205776+00:00'
+  priority: medium
+  tags: []
+- id: 3
+  title: New Task
+  status: todo
+  progress: 0
+  plan: []
+  done_steps: []
+  notes: ''
+  created_at: '2025-05-29T22:52:25.912026+00:00'
+  updated_at: '2025-05-29T22:52:25.912026+00:00'
+  priority: medium
+  tags: []
+- id: 4
+  title: Task with plan
+  status: todo
+  progress: 0
+  plan:
+  - Step 1
+  - Step 2
+  - Step 3
+  done_steps: []
+  notes: ''
+  created_at: '2025-05-29T22:52:32.687662+00:00'
+  updated_at: '2025-05-29T22:52:32.687662+00:00'
+  priority: medium
+  tags: []
+- id: 5
+  title: In progress task
+  status: in_progress
+  progress: 0
+  plan: []
+  done_steps: []
+  notes: ''
+  created_at: '2025-05-29T22:52:32.956687+00:00'
+  updated_at: '2025-05-29T22:52:32.956687+00:00'
+  priority: medium
+  tags: []
+- id: 6
+  title: Test task
+  status: todo
+  progress: 0
+  plan: []
+  done_steps: []
+  notes: ''
+  created_at: '2025-05-29T22:52:35.594970+00:00'
+  updated_at: '2025-05-29T22:52:35.594970+00:00'
+  priority: medium
+  tags: []

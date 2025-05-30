@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-Сканирует проект и генерирует/обновляет memory.toml (особенно секцию files.include).
-Создает пустой docs/TASKS.yaml и docs/PREFERENCES.yaml если их нет.
+Scans the project and generates/updates memory.toml (especially the files.include section).
+Creates empty docs/TASKS.yaml and docs/PREFERENCES.yaml if they don't exist.
 """
 import os
 import pathlib
@@ -11,15 +11,15 @@ import sys
 import fnmatch
 import tomli # For reading existing toml
 import tomli_w # For writing toml
+from memory_utils import DEFAULT_BOOTSTRAP_CFG_STRUCTURE
 
 # ───────────────────────────────────────── Logging Setup ────
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
 
 # ───────────────────────────────────────── Constants ────
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = pathlib.Path(__file__).resolve().parents[1]  # memex_root
+HOST_PROJECT_ROOT_FOR_SCAN = ROOT.parent  # Assuming memex is a direct subdirectory of the host project
 CFG_PATH = ROOT / "memory.toml"
-TASKS_YAML_PATH = ROOT / "docs" / "TASKS.yaml" # Default, but actual path from config
-PREFERENCES_YAML_PATH = ROOT / "docs" / "PREFERENCES.yaml" # Default
 
 # Common patterns to exclude
 COMMON_EXCLUDE_PATTERNS = [
@@ -43,21 +43,17 @@ DIR_EXCLUDE_PATTERNS = set(
     if "/" in pattern and not pattern.endswith("/*")
 )
 
-# Default config structure if memory.toml doesn't exist or is minimal
-DEFAULT_BOOTSTRAP_CFG_STRUCTURE = {
-    "files": {"include": ["src/**/*.*"], "exclude": COMMON_EXCLUDE_PATTERNS},
-    "prompt": {"max_tokens": 10_000, "top_k_tasks": 5, "top_k_context_items": 5},
-    "tasks": {"file": "docs/TASKS.yaml"},
-    "preferences": {"file": "docs/PREFERENCES.yaml"},
-}
-
 def should_exclude_dir(dir_path):
     """
     Check if a directory should be excluded based on exclusion patterns.
     This is used to prune directories early during os.walk() traversal.
     """
-    # Get the relative path from ROOT for pattern matching
-    rel_path = os.path.relpath(dir_path, ROOT)
+    # Explicitly exclude the memex directory itself from scanning
+    if os.path.abspath(dir_path) == os.path.abspath(ROOT):
+        return True
+    
+    # Get the relative path from HOST_PROJECT_ROOT_FOR_SCAN for pattern matching
+    rel_path = os.path.relpath(dir_path, HOST_PROJECT_ROOT_FOR_SCAN)
     
     # Skip hidden directories
     dir_name = os.path.basename(dir_path)
@@ -70,7 +66,7 @@ def should_exclude_dir(dir_path):
     
     # Check each pattern against this directory path
     for pattern in COMMON_EXCLUDE_PATTERNS:
-        # Convert the glob pattern to be relative from ROOT
+        # Convert the glob pattern to be relative from HOST_PROJECT_ROOT_FOR_SCAN
         if fnmatch.fnmatch(rel_path, pattern.replace("**/", "").replace("/**", "")):
             return True
     
@@ -80,8 +76,8 @@ def should_exclude_file(file_path):
     """
     Check if a file should be excluded based on exclusion patterns.
     """
-    # Get the relative path from ROOT for pattern matching
-    rel_path = os.path.relpath(file_path, ROOT)
+    # Get the relative path from HOST_PROJECT_ROOT_FOR_SCAN for pattern matching
+    rel_path = os.path.relpath(file_path, HOST_PROJECT_ROOT_FOR_SCAN)
     
     # Skip hidden files
     file_name = os.path.basename(file_path)
@@ -99,14 +95,14 @@ def main():
     # 1. Scan project for common file types to suggest for `files.include`
     stats = collections.Counter()
     
-    logging.info(f"Scanning project root: {ROOT}")
+    logging.info(f"Scanning host project for bootstrap: {HOST_PROJECT_ROOT_FOR_SCAN}")
     
     scanned_files_count = 0
     excluded_files_count = 0
     excluded_dirs_count = 0
     
     # Use os.walk with topdown=True to allow modifying dirs list in-place
-    for root_dir, dirs, files in os.walk(str(ROOT), topdown=True):
+    for root_dir, dirs, files in os.walk(str(HOST_PROJECT_ROOT_FOR_SCAN), topdown=True):
         # Skip excluded directories - modify dirs in-place to skip traversal
         # Use slice assignment to modify the dirs list in-place
         i = 0
@@ -140,22 +136,36 @@ def main():
     logging.info(f"Total files scanned: {scanned_files_count}. Files excluded: {excluded_files_count}. Directories excluded: {excluded_dirs_count}")
     logging.info(f"File extension counts: {stats}")
 
+    # Calculate the relative prefix needed for patterns
+    # This will give us the relative path from memex_root to host_project_root
+    # For a typical setup where memex is a subdirectory, this should be ".."
+    rel_prefix = os.path.relpath(HOST_PROJECT_ROOT_FOR_SCAN, ROOT)
+    if rel_prefix != ".":  # If not in the same directory
+        rel_prefix = f"{rel_prefix}/" if not rel_prefix.endswith('/') else rel_prefix
+    else:
+        rel_prefix = ""  # No prefix needed if they're the same directory
+        
+    logging.info(f"Using relative path prefix for include patterns: '{rel_prefix}'")
+
     suggested_includes = []
     # Prioritize common code extensions if found
     priority_code_extensions = {"py", "js", "ts", "tsx", "java", "go", "rb", "php", "cs", "c", "cpp", "h", "hpp", "swift", "kt", "rs", "scala", "md"}
 
     for ext, count in stats.most_common(): # Get all found extensions
         if ext in priority_code_extensions:
-            suggested_includes.append(f"**/*.{ext}")
+            suggested_includes.append(f"{rel_prefix}**/*.{ext}")
 
     # If no priority code extensions found, take top 3 generic ones, avoiding binary/uncommon ones
     if not suggested_includes:
         generic_extensions = [ext for ext, count in stats.most_common(5) if ext not in {"exe", "dll", "so", "o", "a", "lock", "log"}] # Add more non-textual extensions
         for ext in generic_extensions[:3]:
-             suggested_includes.append(f"**/*.{ext}")
+             suggested_includes.append(f"{rel_prefix}**/*.{ext}")
 
     if not suggested_includes: # Fallback if still nothing
-        suggested_includes = ["src/**/*.*", "docs/**/*.md"] # A very generic default
+        if rel_prefix:
+            suggested_includes = [f"{rel_prefix}src/**/*.*", f"{rel_prefix}docs/**/*.md"] # Generic default with relative prefix
+        else:
+            suggested_includes = ["src/**/*.*", "docs/**/*.md"] # A very generic default
         logging.warning("No common file types detected or too few files. Using generic include patterns.")
 
     logging.info(f"Suggested include patterns: {suggested_includes}")
@@ -201,8 +211,10 @@ def main():
 
     # 4. Ensure TASKS.yaml and PREFERENCES.yaml exist
     # Paths for these files should ideally come from the `final_cfg` just written.
-    tasks_file_rel_path = final_cfg.get("tasks", {}).get("file", "docs/TASKS.yaml")
-    prefs_file_rel_path = final_cfg.get("preferences", {}).get("file", "docs/PREFERENCES.yaml")
+    tasks_file_rel_path = final_cfg.get("system", {}).get("tasks_file_relative_to_memex_root",
+                                                        final_cfg.get("tasks", {}).get("file", "docs/TASKS.yaml"))
+    prefs_file_rel_path = final_cfg.get("system", {}).get("preferences_file_relative_to_memex_root",
+                                                       final_cfg.get("preferences", {}).get("file", "docs/PREFERENCES.yaml"))
 
     actual_tasks_path = ROOT / tasks_file_rel_path
     actual_prefs_path = ROOT / prefs_file_rel_path

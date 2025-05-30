@@ -1,0 +1,26 @@
+[files]
+include = ["**/*.py", "**/*.md", "**/*.js"]
+exclude = [
+    "**/__pycache__/**",
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/build/**",
+    "**/.venv/**",
+    "**/.vscode/**",
+    "**/.idea/**",
+    "**/.cursor/**",
+    "**/dist/**",
+    "**/*.egg-info/**",
+]
+
+[prompt]
+max_tokens = 10000
+top_k_tasks = 5
+top_k_context_items = 5
+snippet_search_query = "relevant project context"
+
+[tasks]
+file = "docs/TASKS.yaml"
+
+[preferences]
+file = "docs/PREFERENCES.yaml" 

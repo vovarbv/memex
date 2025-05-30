@@ -1,0 +1,2 @@
+important_guidelines:
+  - "CRITICAL: DO NOT modify any files within the memex/ directory except docs/TASKS.yaml and docs/PREFERENCES.yaml"

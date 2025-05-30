@@ -1,0 +1,12 @@
+- id: 1
+  title: "Malformed Task
+  status: "todo
+  progress: 0
+  plan:
+    - Step 1
+    - Step 2"
+missing_quotes: value
+indentation_error:
+    - item1
+  - item2
+: 

@@ -1,0 +1,8 @@
+coding_style: "PEP 8 with a max line length of 100 characters."
+primary_language: "Python 3.11"
+database_type: "PostgreSQL"
+testing_framework: "pytest"
+key_libraries:
+  - "FastAPI for APIs"
+  - "Pydantic for data validation"
+important_note: "Always include docstrings for public functions and classes." 

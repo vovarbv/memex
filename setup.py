@@ -20,6 +20,20 @@ setup(
     extras_require={
         "agents": agents_requirements,
     },
+    entry_points={
+        'console_scripts': [
+            'memex=memex_cli:main',
+            'memex-ui=ui.main_app:launch_ui_cli',
+            'memex-tasks=scripts.tasks:main',
+            'memex-index=scripts.index_codebase:main',
+            'memex-generate=scripts.gen_memory_mdc:main',
+            'memex-search=scripts.search_memory:main',
+            'memex-snippet=scripts.add_snippet:main',
+            'memex-note=scripts.add_memory:main',
+            'memex-health=scripts.check_store_health:main',
+            'memex-bootstrap=scripts.bootstrap_memory:main',
+        ],
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

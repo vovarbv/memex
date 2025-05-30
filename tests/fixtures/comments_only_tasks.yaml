@@ -1,0 +1,8 @@
+# This is a TASKS.yaml file with only comments
+# No actual tasks defined
+# Just a test fixture
+# 
+# tasks:
+#   - id: 0  # This is commented out
+#     title: "Commented Task"
+#     status: "todo"

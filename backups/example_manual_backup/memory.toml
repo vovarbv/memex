@@ -1,0 +1,23 @@
+[files]
+include = [
+    "../**/*.py",
+    "../**/*.md",
+]
+exclude = []
+
+[prompt]
+max_tokens = 10000
+top_k_tasks = 50
+top_k_snippets = 50
+
+[tasks]
+file = "docs/TASKS.yaml"
+tag_prefix = "- "
+
+[preferences]
+file = "docs/PREFERENCES.yaml"
+
+[system]
+cursor_output_dir_relative_to_memex_root = ".."
+tasks_file_relative_to_memex_root = "docs/TASKS.yaml"
+preferences_file_relative_to_memex_root = "docs/PREFERENCES.yaml"

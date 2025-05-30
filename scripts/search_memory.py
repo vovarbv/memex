@@ -7,7 +7,8 @@ import argparse
 import logging
 import textwrap
 
-from memory_utils import search, load_cfg
+from memory_utils import load_cfg
+from thread_safe_store import search
 
 # ───────────────────────────────────────── Logging Setup ────
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

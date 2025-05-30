@@ -1,0 +1,78 @@
+[files]
+include = [
+    "../agent.py",
+    "../app.py",
+    "../check_tab_files.py",
+    "../fix_all_tabs.py",
+    "../fix_indentation.py",
+    "../fix_tabs.py",
+    "../fix_tabs_indent.py",
+    "../fix_tabs_indent_advanced.py",
+    "../get-pip.py",
+    "../log.txt",
+    "../README.md",
+    "../requirements.txt",
+    "../restore_tab.py",
+    "../restore_tabs.py",
+    "../system_prompt.txt",
+    "../test_file_browser.py",
+    "../test_search.py",
+    "../test_ui_snippet.py",
+    "../.cursor/CLAUDE.md",
+]
+exclude = [
+    "../memex/**/*",
+    "../memex_backup/**/*",
+    "../.cursor/vecstore/**/*",
+    "../.cursor/rules/memory.mdc",
+    "../venv/**/*",
+    "../.venv/**/*",
+    "../env/**/*",
+    "../.env/**/*",
+    "../virtualenv/**/*",
+    "../__pycache__/**/*",
+    "**/__pycache__/**/*",
+    "../.pytest_cache/**/*",
+    "**/.pytest_cache/**/*",
+    "../site-packages/**/*",
+    "../Lib/site-packages/**/*",
+    "../lib/python*/site-packages/**/*",
+    "../node_modules/**/*",
+    "**/node_modules/**/*",
+    "../vendor/**/*",
+    "../vendors/**/*",
+    "../~/venvs/**/*",
+    "../~/.local/lib/**/*",
+    "../.idea/**/*",
+    "../.vscode/**/*",
+    "../build/**/*",
+    "../dist/**/*",
+    "../target/**/*",
+    "../out/**/*",
+    "../bin/**/*",
+    "../.git/**/*",
+    "../tmp/**/*",
+    "../temp/**/*",
+    "../logs/**/*",
+    "**/*.log",
+    "**/*.tmp",
+    "../.DS_Store",
+    "**/Thumbs.db",
+]
+
+[prompt]
+max_tokens = 10000
+top_k_tasks = 50
+top_k_snippets = 50
+
+[tasks]
+file = "docs/TASKS.yaml"
+tag_prefix = "- "
+
+[preferences]
+file = "docs/PREFERENCES.yaml"
+
+[system]
+cursor_output_dir_relative_to_memex_root = ".."
+tasks_file_relative_to_memex_root = "docs/TASKS.yaml"
+preferences_file_relative_to_memex_root = "docs/PREFERENCES.yaml"

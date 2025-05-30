@@ -6,5 +6,8 @@ PyYAML>=6.0.2                 # For YAML handling (tasks, preferences)
 tomli-w>=1.1.0                # For TOML writing
 tomli>=2.0.0                  # For TOML reading
 numpy>=1.26.4,<2.0            # Pinning to NumPy 1.x for faiss compatibility
+gradio>=3.0,<4.0              # Web UI for Memex
+filelock>=3.0.0               # For thread-safe file operations
+psutil>=5.9.0                 # For memory monitoring
 
 # For optional agent features, install with: pip install -r requirements-agents.txt
