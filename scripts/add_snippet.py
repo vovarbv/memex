@@ -97,7 +97,7 @@ def add_snippet_logic(content: str, lang: str = "text", source_desc: str = "manu
             "raw_content": content,  # Store raw content separately if needed
             "language": final_lang,
             "source": source_desc,
-            "timestamp": dt.datetime.utcnow().isoformat(),
+            "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
             "id": snippet_id  # Store the ID also in metadata for easier lookup
         }
         

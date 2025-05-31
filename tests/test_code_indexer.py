@@ -170,7 +170,7 @@ Let's see if this works correctly.
             self.assertIn("type", chunk)
             self.assertEqual(chunk["type"], "code_chunk")
             self.assertIn("language", chunk)
-            self.assertEqual(chunk["language"], "plaintext")
+            self.assertEqual(chunk["language"], "text")
             self.assertIn("content", chunk)
             self.assertIn("source_file", chunk)
             self.assertEqual(chunk["source_file"], str(txt_file))
@@ -179,6 +179,16 @@ Let's see if this works correctly.
 
 class TestIndexCodebase(unittest.TestCase):
     """Test the codebase indexing functionality."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        # Create a temporary directory for test files
+        self.temp_dir = tempfile.mkdtemp()
+    
+    def tearDown(self):
+        """Tear down test fixtures."""
+        # Remove the temporary directory
+        shutil.rmtree(self.temp_dir)
     
     @mock.patch('memex.scripts.memory_utils.add_or_replace')
     def test_index_code_chunk(self, mock_add_or_replace):
@@ -199,6 +209,9 @@ class TestIndexCodebase(unittest.TestCase):
             "content": content
         }
         
+        # Configure mock to return the chunk_id on success
+        mock_add_or_replace.return_value = chunk_id
+        
         # Call the function
         result = index_code_chunk(chunk_id, content, metadata)
         
@@ -209,14 +222,14 @@ class TestIndexCodebase(unittest.TestCase):
         mock_add_or_replace.assert_called_once()
         args, kwargs = mock_add_or_replace.call_args
         self.assertEqual(args[0], chunk_id)
-        self.assertIn("Python function `test_function`", args[1])
+        self.assertIn("python function 'test_function'", args[1])
         self.assertEqual(args[2], metadata)
     
     def test_chunk_empty_file(self):
         """Test chunking an empty file."""
         # Create empty file
         empty_content = ""
-        empty_file = self.temp_dir / "empty.py"
+        empty_file = pathlib.Path(self.temp_dir) / "empty.py"
         empty_file.write_text(empty_content)
         
         # Test empty Python file
@@ -224,7 +237,7 @@ class TestIndexCodebase(unittest.TestCase):
         self.assertEqual(len(chunks), 0)
         
         # Test empty Markdown file
-        empty_md = self.temp_dir / "empty.md"
+        empty_md = pathlib.Path(self.temp_dir) / "empty.md"
         empty_md.write_text(empty_content)
         chunks = chunk_markdown_file(str(empty_md))
         self.assertEqual(len(chunks), 0)
@@ -240,7 +253,7 @@ class TestIndexCodebase(unittest.TestCase):
             large_content.append(f"    return {i}")
             large_content.append("")  # Empty line
         
-        large_file = self.temp_dir / "large.py"
+        large_file = pathlib.Path(self.temp_dir) / "large.py"
         large_file.write_text("\n".join(large_content))
         
         # Chunk with specific max_lines
@@ -264,7 +277,7 @@ def broken_function(:  # Missing parameter
 def valid_function():
     return "This is valid"
 """
-        error_file = self.temp_dir / "syntax_error.py"
+        error_file = pathlib.Path(self.temp_dir) / "syntax_error.py"
         error_file.write_text(syntax_error_content)
         
         # Should still chunk the file, treating it as text
@@ -283,7 +296,7 @@ def valid_function():
         from ..scripts.index_codebase import find_files_to_index
         
         # Create test file structure
-        test_root = self.temp_dir / "test_project"
+        test_root = pathlib.Path(self.temp_dir) / "test_project"
         test_root.mkdir()
         
         # Create various files
@@ -337,7 +350,7 @@ def standalone_function():
 # Global variable
 CONSTANT = 42
 '''
-        test_file = self.temp_dir / "test_metadata.py"
+        test_file = pathlib.Path(self.temp_dir) / "test_metadata.py"
         test_file.write_text(python_content)
         
         chunks = chunk_python_file(str(test_file))

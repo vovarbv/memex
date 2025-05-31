@@ -4,6 +4,7 @@ Thread-safe wrapper for vector store operations.
 This module provides thread-safe access to FAISS vector store operations
 to prevent race conditions and data corruption in concurrent environments.
 """
+from __future__ import annotations
 import threading
 import logging
 import functools

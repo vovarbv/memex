@@ -200,12 +200,27 @@ class SafeEvaluator(ast.NodeVisitor):
             else:
                 raise ValueError(f"Method '{method_name}' is not allowed for {type(obj).__name__}")
         
+        # Handle lambda functions specifically
+        elif isinstance(node.func, ast.Lambda):
+            raise ValueError("Unsupported operation: lambda functions are not allowed")
+        
         else:
             raise ValueError("Complex function calls are not allowed")
     
     def visit_Attribute(self, node):
         """Visit an attribute access (e.g., obj.attr)."""
         obj = self.visit(node.value)
+        
+        # Block access to dangerous attributes that could lead to code execution
+        dangerous_attrs = {
+            '__class__', '__bases__', '__mro__', '__subclasses__',
+            '__globals__', '__locals__', '__dict__', '__getattribute__',
+            '__setattr__', '__delattr__', '__import__', '__builtins__',
+            '__code__', '__func_globals__', '__func_closure__'
+        }
+        
+        if node.attr in dangerous_attrs:
+            raise ValueError(f"Access to attribute '{node.attr}' is not allowed for security reasons")
         
         # Only allow attribute access on dictionaries using dot notation
         # This is mainly for convenience, as dict.get() is preferred

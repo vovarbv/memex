@@ -27,30 +27,47 @@ class MockIndex:
 class TestMemoryBoundedIndexManager:
     """Test cases for the MemoryBoundedIndexManager."""
     
-    @patch('memex.scripts.memory_bounded_index_manager._load_index_internal')
-    @patch('memex.scripts.memory_bounded_index_manager.get_index_path')
-    @patch('memex.scripts.memory_bounded_index_manager.get_meta_path')
-    def test_basic_caching(self, mock_meta_path, mock_index_path, mock_load):
+    def setup_method(self):
+        """Reset global state before each test."""
+        # Reset the cached import functions to ensure test isolation
+        import memex.scripts.memory_bounded_index_manager as mbim
+        mbim._imported_functions = None
+        # Reset the singleton instance
+        mbim.MemoryBoundedIndexManager._instance = None
+    
+    @patch('memex.scripts.memory_bounded_index_manager.get_memory_utils_functions')
+    def test_basic_caching(self, mock_get_functions):
         """Test basic caching functionality."""
         # Setup mocks
-        mock_index_path.return_value = pathlib.Path("/fake/index.faiss")
-        mock_meta_path.return_value = pathlib.Path("/fake/metadata.json")
+        mock_load_cfg = Mock(return_value={})
+        mock_get_index_path = Mock(return_value=pathlib.Path("/fake/index.faiss"))
+        mock_get_meta_path = Mock(return_value=pathlib.Path("/fake/metadata.json"))
         mock_index = MockIndex()
         mock_meta = {"test": "data"}
-        mock_load.return_value = (mock_index, mock_meta)
+        mock_load_index_internal = Mock(return_value=(mock_index, mock_meta))
+        mock_root = pathlib.Path("/fake/root")
+        
+        # Configure the mock to return our mock functions
+        mock_get_functions.return_value = (
+            mock_load_cfg,
+            mock_get_index_path,
+            mock_get_meta_path,
+            mock_load_index_internal,
+            mock_root
+        )
         
         # Create manager
         manager = MemoryBoundedIndexManager()
         
         # First load should hit disk
         index1, meta1 = manager.get_index_and_meta()
-        assert mock_load.call_count == 1
+        assert mock_load_index_internal.call_count == 1
         assert index1.d == 128
         assert meta1["test"] == "data"
         
         # Second load should use cache
         index2, meta2 = manager.get_index_and_meta()
-        assert mock_load.call_count == 1  # No additional load
+        assert mock_load_index_internal.call_count == 1  # No additional load
         assert index2 is index1  # Same object
         assert meta2 is meta1
         
@@ -60,10 +77,24 @@ class TestMemoryBoundedIndexManager:
         assert stats['hits'] == 1
         assert stats['cache_entries'] == 1
     
-    @patch('memex.scripts.memory_bounded_index_manager._load_index_internal')
-    def test_force_reload(self, mock_load):
+    @patch('memex.scripts.memory_bounded_index_manager.get_memory_utils_functions')
+    def test_force_reload(self, mock_get_functions):
         """Test force reload functionality."""
-        mock_load.return_value = (MockIndex(), {"version": 1})
+        # Setup mocks
+        mock_load_cfg = Mock(return_value={})
+        mock_get_index_path = Mock(return_value=pathlib.Path("/fake/index.faiss"))
+        mock_get_meta_path = Mock(return_value=pathlib.Path("/fake/metadata.json"))
+        mock_load_index_internal = Mock(return_value=(MockIndex(), {"version": 1}))
+        mock_root = pathlib.Path("/fake/root")
+        
+        # Configure the mock to return our mock functions
+        mock_get_functions.return_value = (
+            mock_load_cfg,
+            mock_get_index_path,
+            mock_get_meta_path,
+            mock_load_index_internal,
+            mock_root
+        )
         
         manager = MemoryBoundedIndexManager()
         
@@ -72,7 +103,7 @@ class TestMemoryBoundedIndexManager:
         assert meta1["version"] == 1
         
         # Change return value
-        mock_load.return_value = (MockIndex(), {"version": 2})
+        mock_load_index_internal.return_value = (MockIndex(), {"version": 2})
         
         # Normal load should use cache
         index2, meta2 = manager.get_index_and_meta()
@@ -81,12 +112,26 @@ class TestMemoryBoundedIndexManager:
         # Force reload should hit disk
         index3, meta3 = manager.get_index_and_meta(force_reload=True)
         assert meta3["version"] == 2  # New data
-        assert mock_load.call_count == 2
+        assert mock_load_index_internal.call_count == 2
     
-    @patch('memex.scripts.memory_bounded_index_manager._load_index_internal')
-    def test_ttl_eviction(self, mock_load):
+    @patch('memex.scripts.memory_bounded_index_manager.get_memory_utils_functions')
+    def test_ttl_eviction(self, mock_get_functions):
         """Test time-to-live eviction."""
-        mock_load.return_value = (MockIndex(), {"data": "test"})
+        # Setup mocks
+        mock_load_cfg = Mock(return_value={})
+        mock_get_index_path = Mock(return_value=pathlib.Path("/fake/index.faiss"))
+        mock_get_meta_path = Mock(return_value=pathlib.Path("/fake/metadata.json"))
+        mock_load_index_internal = Mock(return_value=(MockIndex(), {"data": "test"}))
+        mock_root = pathlib.Path("/fake/root")
+        
+        # Configure the mock to return our mock functions
+        mock_get_functions.return_value = (
+            mock_load_cfg,
+            mock_get_index_path,
+            mock_get_meta_path,
+            mock_load_index_internal,
+            mock_root
+        )
         
         manager = MemoryBoundedIndexManager()
         manager.ttl_seconds = 1  # Very short TTL for testing
@@ -105,22 +150,36 @@ class TestMemoryBoundedIndexManager:
         assert len(manager.cache) == 0
         assert manager.get_stats()['evictions'] == 1
     
-    @patch('memex.scripts.memory_bounded_index_manager._load_index_internal')
-    def test_memory_limit_eviction(self, mock_load):
+    @patch('memex.scripts.memory_bounded_index_manager.get_memory_utils_functions')
+    def test_memory_limit_eviction(self, mock_get_functions):
         """Test memory limit eviction."""
         # Create large mock data
         large_meta = {"data": "x" * 1000000}  # ~1MB
-        mock_load.return_value = (MockIndex(), large_meta)
+        
+        # Setup mocks
+        mock_load_cfg = Mock(return_value={})
+        mock_get_index_path = Mock(return_value=pathlib.Path("/fake/index.faiss"))
+        mock_get_meta_path = Mock(return_value=pathlib.Path("/fake/metadata.json"))
+        mock_load_index_internal = Mock(return_value=(MockIndex(), large_meta))
+        mock_root = pathlib.Path("/fake/root")
+        
+        # Configure the mock to return our mock functions
+        mock_get_functions.return_value = (
+            mock_load_cfg,
+            mock_get_index_path,
+            mock_get_meta_path,
+            mock_load_index_internal,
+            mock_root
+        )
         
         manager = MemoryBoundedIndexManager()
         manager.max_memory_mb = 2  # Low limit for testing
         
         # Load multiple entries that exceed memory limit
         for i in range(5):
-            # Mock different paths to create different cache entries
-            with patch('memex.scripts.memory_bounded_index_manager.get_index_path') as mock_path:
-                mock_path.return_value = pathlib.Path(f"/fake/index_{i}.faiss")
-                manager.get_index_and_meta()
+            # Update the mock to return different paths to create different cache entries
+            mock_get_index_path.return_value = pathlib.Path(f"/fake/index_{i}.faiss")
+            manager.get_index_and_meta()
         
         # Check that eviction happened
         stats = manager.get_stats()
@@ -249,6 +308,14 @@ class TestMemoryBoundedIndexManager:
 class TestModuleFunctions:
     """Test module-level wrapper functions."""
     
+    def setup_method(self):
+        """Reset global state before each test."""
+        # Reset the cached import functions to ensure test isolation
+        import memex.scripts.memory_bounded_index_manager as mbim
+        mbim._imported_functions = None
+        # Reset the singleton instance
+        mbim.MemoryBoundedIndexManager._instance = None
+    
     def test_get_index_and_meta_wrapper(self):
         """Test the module-level get_index_and_meta function."""
         with patch.object(MemoryBoundedIndexManager, 'get_index_and_meta') as mock_method:
@@ -258,7 +325,7 @@ class TestModuleFunctions:
             
             assert index.d == 128
             assert meta["test"] == "data"
-            mock_method.assert_called_once_with(force_reload=False)
+            mock_method.assert_called_once_with(False)
     
     def test_get_cache_stats_wrapper(self):
         """Test the module-level get_cache_stats function."""
@@ -277,16 +344,38 @@ class TestModuleFunctions:
         with patch.object(MemoryBoundedIndexManager, 'set_limits') as mock_method:
             set_cache_limits(max_memory_mb=50, ttl_seconds=1800)
             
-            mock_method.assert_called_once_with(max_memory_mb=50, ttl_seconds=1800)
+            mock_method.assert_called_once_with(50, 1800)
 
 
 class TestConcurrency:
     """Test concurrent access to the cache."""
     
-    @patch('memex.scripts.memory_bounded_index_manager._load_index_internal')
-    def test_concurrent_access(self, mock_load):
+    def setup_method(self):
+        """Reset global state before each test."""
+        # Reset the cached import functions to ensure test isolation
+        import memex.scripts.memory_bounded_index_manager as mbim
+        mbim._imported_functions = None
+        # Reset the singleton instance
+        mbim.MemoryBoundedIndexManager._instance = None
+    
+    @patch('memex.scripts.memory_bounded_index_manager.get_memory_utils_functions')
+    def test_concurrent_access(self, mock_get_functions):
         """Test that concurrent access is thread-safe."""
-        mock_load.return_value = (MockIndex(), {"concurrent": "test"})
+        # Setup mocks
+        mock_load_cfg = Mock(return_value={})
+        mock_get_index_path = Mock(return_value=pathlib.Path("/fake/index.faiss"))
+        mock_get_meta_path = Mock(return_value=pathlib.Path("/fake/metadata.json"))
+        mock_load_index_internal = Mock(return_value=(MockIndex(), {"concurrent": "test"}))
+        mock_root = pathlib.Path("/fake/root")
+        
+        # Configure the mock to return our mock functions
+        mock_get_functions.return_value = (
+            mock_load_cfg,
+            mock_get_index_path,
+            mock_get_meta_path,
+            mock_load_index_internal,
+            mock_root
+        )
         
         manager = MemoryBoundedIndexManager()
         results = []

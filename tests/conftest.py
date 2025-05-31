@@ -2,10 +2,15 @@
 Common pytest fixtures for testing.
 """
 import os
+import sys
 import pathlib
 import shutil
 from unittest.mock import patch
 import logging
+
+# Add the scripts directory to sys.path so scripts can import each other
+scripts_dir = pathlib.Path(__file__).parent.parent / "scripts"
+sys.path.insert(0, str(scripts_dir))
 
 import pytest
 import numpy as np

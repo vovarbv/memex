@@ -38,7 +38,7 @@ def add_memory_item_logic(text_content: str, item_type: str = "note", custom_id:
     meta = {
         "type": item_type,
         "text": text_content,  # The original text for display or mdc
-        "timestamp": dt.datetime.utcnow().isoformat(),
+        "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
         "id": memory_id  # Store the ID in metadata as well
     }
 

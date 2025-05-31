@@ -56,11 +56,36 @@ def chunk_python_file(file_path: str, min_lines: int = 5, max_lines: int = 100) 
         with open(path, 'r', encoding='utf-8') as f:
             file_content = f.read()
         
+        # Handle empty files
+        if not file_content:
+            return []
+        
         chunks = []
         
-        # Use tokenize to find functions and classes
+        # Try to use tokenize to find functions and classes
         # This is more robust than regex for Python
-        tokens = list(tokenize.tokenize(io.BytesIO(file_content.encode('utf-8')).readline))
+        try:
+            tokens = list(tokenize.tokenize(io.BytesIO(file_content.encode('utf-8')).readline))
+        except tokenize.TokenError as e:
+            # If tokenization fails (e.g., syntax error), fall back to simple chunking
+            logging.warning(f"Tokenization failed for {file_path}: {e}. Falling back to simple chunking.")
+            file_lines = file_content.split('\n')
+            chunk_id = generate_chunk_id(
+                str(path),
+                1,
+                len(file_lines),
+                _calculate_content_hash(file_content)
+            )
+            return [{
+                "id": chunk_id,
+                "type": "code_chunk",
+                "source_file": str(path),
+                "language": "python",
+                "start_line": 1,
+                "end_line": len(file_lines),
+                "name": path.name,
+                "content": file_content
+            }]
         
         # First pass - collect all function/class definitions
         definitions = []
@@ -101,9 +126,9 @@ def chunk_python_file(file_path: str, min_lines: int = 5, max_lines: int = 100) 
                         "end_line": end_line
                     })
         
-        # If no definitions were found or file is short, create a single chunk
+        # If no definitions were found, create a single chunk
         file_lines = file_content.split('\n')
-        if not definitions or len(file_lines) <= max_lines:
+        if not definitions:
             content = file_content
             chunk_id = generate_chunk_id(
                 str(path),
@@ -125,9 +150,7 @@ def chunk_python_file(file_path: str, min_lines: int = 5, max_lines: int = 100) 
         
         # Process each definition
         for defn in definitions:
-            # Skip if it's too small
-            if defn["end_line"] - defn["start_line"] < min_lines:
-                continue
+            # Don't skip based on size - let all functions/classes be chunks
                 
             # Split if it's too large
             if defn["end_line"] - defn["start_line"] > max_lines:
@@ -450,28 +473,12 @@ def chunk_markdown_file(file_path: str, min_lines: int = 5, max_lines: int = 100
         with open(path, 'r', encoding='utf-8') as f:
             file_content = f.read()
         
+        # Handle empty files
+        if not file_content:
+            return []
+        
         chunks = []
         file_lines = file_content.split('\n')
-        
-        # If file is small enough, return it as a single chunk
-        if len(file_lines) <= max_lines:
-            chunk_id = generate_chunk_id(
-                str(path),
-                1,
-                len(file_lines),
-                _calculate_content_hash(file_content)
-            )
-            chunks.append({
-                "id": chunk_id,
-                "type": "code_chunk",
-                "source_file": str(path),
-                "language": "markdown",
-                "start_line": 1,
-                "end_line": len(file_lines),
-                "name": path.name,
-                "content": file_content
-            })
-            return chunks
         
         # Find all headings
         heading_pattern = re.compile(r'^(#{1,6})\s+(.+)$', re.MULTILINE)
@@ -548,9 +555,7 @@ def chunk_markdown_file(file_path: str, min_lines: int = 5, max_lines: int = 100
                 start_line = headings[i]["line"]
                 end_line = headings[i+1]["line"] - 1 if i < len(headings) - 1 else len(file_lines)
                 
-                # Skip if section is too small
-                if end_line - start_line + 1 < min_lines:
-                    continue
+                # Don't skip sections based on size - let all sections be chunks
                 
                 # Split if section is too large
                 if end_line - start_line + 1 > max_lines:

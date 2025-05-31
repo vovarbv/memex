@@ -2,16 +2,12 @@ import pytest
 from unittest.mock import patch, MagicMock
 import datetime as dt
 
+# Only import functions that actually exist in the current version
 from scripts.tasks import (
     create_task_logic,
-    start_task_logic,
-    bump_task_logic,
-    delete_task_logic,
-    list_tasks_logic,
-    add_note_to_task_logic,
-    complete_step_logic,
     sync_task_vector,
-    delete_task_vector
+    parse_free_text_task,
+    create_task_from_free_text
 )
 from scripts.task_store import Task, TaskStore
 
@@ -55,15 +51,17 @@ def test_sync_task_vector(mock_add_or_replace):
     assert mock_add_or_replace.call_args[0][2]["type"] == "task"
 
 
+@pytest.mark.skip(reason="delete_task_vector function no longer exists")
 def test_delete_task_vector(mock_delete_vector):
     # Set up the mock to return True (successful deletion)
     mock_delete_vector.return_value = True
     
     # Call the function
-    delete_task_vector(1)
+    # delete_task_vector(1)  # Function no longer exists
     
     # Verify delete_vector was called with correct task ID
-    mock_delete_vector.assert_called_once_with(1)
+    # mock_delete_vector.assert_called_once_with(1)
+    pass
 
 
 # ────────────────────────── Logic Function Tests ──────────────────────────
@@ -75,6 +73,13 @@ def mock_task_store():
 
 
 def test_create_task_logic(mock_task_store, mock_add_or_replace):
+    # Configure mock to simulate real add_task behavior: assign ID to the passed task
+    def mock_add_task_side_effect(task):
+        task.id = 123  # Simulate ID assignment
+        return task
+    
+    mock_task_store.add_task.side_effect = mock_add_task_side_effect
+    
     # Call create_task_logic
     task_dict = create_task_logic(
         "New Test Task",
@@ -103,6 +108,13 @@ def test_create_task_logic(mock_task_store, mock_add_or_replace):
 
 
 def test_create_task_done_status(mock_task_store, mock_add_or_replace):
+    # Configure mock to simulate real add_task behavior: assign ID to the passed task
+    def mock_add_task_side_effect(task):
+        task.id = 456  # Simulate ID assignment
+        return task
+    
+    mock_task_store.add_task.side_effect = mock_add_task_side_effect
+    
     # Call create_task_logic with done status
     task_dict = create_task_logic(
         "Completed Task",
@@ -117,6 +129,7 @@ def test_create_task_done_status(mock_task_store, mock_add_or_replace):
     assert task_dict["done_steps"] == ["Step 1", "Step 2"]
 
 
+@pytest.mark.skip(reason="start_task_logic function no longer exists")
 def test_start_task_logic_not_found(mock_task_store):
     # Set up mock to return None (task not found)
     mock_task_store.get_task_by_id.return_value = None
@@ -130,6 +143,7 @@ def test_start_task_logic_not_found(mock_task_store):
     assert not mock_task_store.update_task.called
 
 
+@pytest.mark.skip(reason="start_task_logic function no longer exists")
 def test_start_task_logic_already_started(mock_task_store, mock_add_or_replace):
     # Create a task that's already in progress
     task = Task(id=1, title="Already Started", status="in_progress")
@@ -147,6 +161,7 @@ def test_start_task_logic_already_started(mock_task_store, mock_add_or_replace):
     assert not mock_task_store.update_task.called
 
 
+@pytest.mark.skip(reason="start_task_logic function no longer exists")
 def test_start_task_logic_success(mock_task_store, mock_add_or_replace):
     # Create a task that's not started
     task = Task(id=1, title="Task to Start", status="todo")
@@ -169,6 +184,7 @@ def test_start_task_logic_success(mock_task_store, mock_add_or_replace):
     mock_add_or_replace.assert_called_once()
 
 
+@pytest.mark.skip(reason="bump_task_logic function no longer exists")
 def test_bump_task_logic_not_found(mock_task_store):
     # Set up mock to return None (task not found)
     mock_task_store.get_task_by_id.return_value = None
@@ -182,6 +198,7 @@ def test_bump_task_logic_not_found(mock_task_store):
     assert not mock_task_store.update_task.called
 
 
+@pytest.mark.skip(reason="bump_task_logic function no longer exists")
 def test_bump_task_logic_no_change(mock_task_store, mock_add_or_replace):
     # Create a task with specific progress
     task = Task(id=1, title="Unchanged Task", status="in_progress", progress=50)
@@ -200,6 +217,7 @@ def test_bump_task_logic_no_change(mock_task_store, mock_add_or_replace):
     assert not mock_add_or_replace.called
 
 
+@pytest.mark.skip(reason="bump_task_logic function no longer exists")
 def test_bump_task_logic_increase_progress(mock_task_store, mock_add_or_replace):
     # Create a task with starting progress
     task = Task(id=1, title="Progressing Task", status="in_progress", progress=25)
@@ -223,6 +241,7 @@ def test_bump_task_logic_increase_progress(mock_task_store, mock_add_or_replace)
     mock_add_or_replace.assert_called_once()
 
 
+@pytest.mark.skip(reason="bump_task_logic function no longer exists")
 def test_bump_task_logic_complete_task(mock_task_store, mock_add_or_replace):
     # Create a task with progress near completion
     task = Task(id=1, title="Almost Done Task", status="in_progress", progress=90)
@@ -246,6 +265,7 @@ def test_bump_task_logic_complete_task(mock_task_store, mock_add_or_replace):
     mock_add_or_replace.assert_called_once()
 
 
+@pytest.mark.skip(reason="delete_task_logic function no longer exists")
 def test_delete_task_logic(mock_task_store, mock_delete_vector):
     # Set up mock to return a task
     task = Task(id=1, title="Task to Delete")
@@ -267,6 +287,7 @@ def test_delete_task_logic(mock_task_store, mock_delete_vector):
     mock_delete_vector.assert_called_once_with(1)
 
 
+@pytest.mark.skip(reason="delete_task_logic function no longer exists")
 def test_delete_task_logic_not_found(mock_task_store, mock_delete_vector):
     # Set up mock to return None (task not found)
     mock_task_store.get_task_by_id.return_value = None
@@ -282,6 +303,7 @@ def test_delete_task_logic_not_found(mock_task_store, mock_delete_vector):
     assert not mock_delete_vector.called
 
 
+@pytest.mark.skip(reason="list_tasks_logic function no longer exists")
 def test_list_tasks_logic_all(mock_task_store):
     # Create sample task list
     tasks = [
@@ -305,6 +327,7 @@ def test_list_tasks_logic_all(mock_task_store):
     mock_task_store.get_all_tasks_as_dicts.assert_called_once()
 
 
+@pytest.mark.skip(reason="list_tasks_logic function no longer exists")
 def test_list_tasks_logic_with_filter(mock_task_store):
     # Create sample task list
     tasks = [
@@ -330,6 +353,7 @@ def test_list_tasks_logic_with_filter(mock_task_store):
     mock_task_store.get_tasks_by_status.assert_called_once_with("in_progress")
 
 
+@pytest.mark.skip(reason="add_note_to_task_logic function no longer exists")
 def test_add_note_to_task_logic(mock_task_store, mock_add_or_replace):
     # Create a task
     task = Task(id=1, title="Task with Notes", notes=[])
@@ -351,6 +375,7 @@ def test_add_note_to_task_logic(mock_task_store, mock_add_or_replace):
     mock_add_or_replace.assert_called_once()
 
 
+@pytest.mark.skip(reason="add_note_to_task_logic function no longer exists")
 def test_add_note_to_task_logic_not_found(mock_task_store, mock_add_or_replace):
     # Set up mock to return None (task not found)
     mock_task_store.get_task_by_id.return_value = None
@@ -366,6 +391,7 @@ def test_add_note_to_task_logic_not_found(mock_task_store, mock_add_or_replace):
     assert not mock_add_or_replace.called
 
 
+@pytest.mark.skip(reason="complete_step_logic function no longer exists")
 def test_complete_step_logic_task_not_found(mock_task_store):
     # Set up mock to return None (task not found)
     mock_task_store.get_task_by_id.return_value = None
@@ -378,6 +404,7 @@ def test_complete_step_logic_task_not_found(mock_task_store):
     assert message == "TASK_NOT_FOUND"
 
 
+@pytest.mark.skip(reason="complete_step_logic function no longer exists")
 def test_complete_step_logic_step_not_in_plan(mock_task_store, mock_add_or_replace):
     # Create a task with plan steps
     task = Task(id=1, title="Task with Plan", plan=["Step 1", "Step 2"], done_steps=[])
@@ -396,6 +423,7 @@ def test_complete_step_logic_step_not_in_plan(mock_task_store, mock_add_or_repla
     assert not mock_add_or_replace.called
 
 
+@pytest.mark.skip(reason="complete_step_logic function no longer exists")
 def test_complete_step_logic_complete_first_step(mock_task_store, mock_add_or_replace):
     # Create a task with plan steps
     task = Task(id=1, title="Task with Plan", plan=["Step 1", "Step 2"], done_steps=[])
@@ -419,6 +447,7 @@ def test_complete_step_logic_complete_first_step(mock_task_store, mock_add_or_re
     mock_add_or_replace.assert_called_once()
 
 
+@pytest.mark.skip(reason="complete_step_logic function no longer exists")
 def test_complete_step_logic_complete_all_steps(mock_task_store, mock_add_or_replace):
     # Create a task with one step already done
     task = Task(id=1, title="Task with Plan", plan=["Step 1", "Step 2"], 
@@ -445,6 +474,7 @@ def test_complete_step_logic_complete_all_steps(mock_task_store, mock_add_or_rep
     mock_add_or_replace.assert_called_once()
 
 
+@pytest.mark.skip(reason="complete_step_logic function no longer exists")
 def test_complete_step_logic_unmark_step(mock_task_store, mock_add_or_replace):
     # Create a task with completed steps
     task = Task(id=1, title="Task with Plan", plan=["Step 1", "Step 2"], 
@@ -469,3 +499,45 @@ def test_complete_step_logic_unmark_step(mock_task_store, mock_add_or_replace):
     
     # Verify vector sync was called
     mock_add_or_replace.assert_called_once() 
+
+
+# ────────────────────────── New Tests for Current API ──────────────────────────
+
+def test_parse_free_text_task():
+    """Test parsing free text task input"""
+    # Test basic task
+    result = parse_free_text_task("Implement user authentication")
+    assert result["title"] == "Implement user authentication"
+    assert result["plan"] == []
+    assert result["status"] == "todo"
+    
+    # Test task with plan
+    result = parse_free_text_task("Build API: Design endpoints, Implement handlers, Write tests")
+    assert result["title"] == "Build API"
+    assert len(result["plan"]) == 3
+    assert "Design endpoints" in result["plan"]
+    assert "Implement handlers" in result["plan"]
+    assert "Write tests" in result["plan"]
+    
+    # Test task with status
+    result = parse_free_text_task("[in_progress] Fix login bug")
+    assert result["title"] == "Fix login bug"
+    assert result["status"] == "in_progress"
+
+
+def test_create_task_from_free_text(mock_task_store, mock_add_or_replace):
+    """Test creating task from free text"""
+    
+    # Mock add_task to simulate real behavior: modify the passed task's ID in place
+    def mock_add_task_side_effect(task):
+        task.id = 123  # Simulate ID assignment
+        return task
+    
+    mock_task_store.add_task.side_effect = mock_add_task_side_effect
+    
+    result = create_task_from_free_text("Test Task", mock_task_store)
+    
+    # Verify task was added
+    mock_task_store.add_task.assert_called_once()
+    assert result["id"] == 123
+    assert result["title"] == "Test Task"

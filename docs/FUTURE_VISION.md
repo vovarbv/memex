@@ -1,4 +1,8 @@
-# Memex Sharp Implementation Plan
+# Memex Future Vision
+
+> **Note**: This document outlines aspirational features and enhancements for future Memex development.  
+> **Current Status**: Conceptual - not part of active roadmap  
+> **See**: `ARCHITECTURE_STATUS.md` for current implementation status
 
 ## Vision
 Transform Memex from a manual memory management tool into an intelligent, zero-friction context provider that learns and adapts to boost AI-assisted development productivity.

@@ -71,7 +71,7 @@ def parse_free_text_task(text: str) -> Dict[str, Any]:
         Dictionary with parsed task fields
     """
     if not text or not text.strip():
-        return {"title": "", "plan": [], "status": "todo", "progress": 0}
+        return {"title": "Untitled Task", "plan": [], "status": "todo", "progress": 0, "priority": None, "tags": [], "notes": []}
     
     # Normalize line endings and split by lines
     lines = text.replace("\r\n", "\n").split("\n")
@@ -82,7 +82,7 @@ def parse_free_text_task(text: str) -> Dict[str, Any]:
         "plan": [],
         "status": "todo",
         "progress": 0,
-        "priority": "medium",
+        "priority": None,
         "tags": [],
         "notes": []
     }
@@ -92,7 +92,7 @@ def parse_free_text_task(text: str) -> Dict[str, Any]:
         "todo": "todo",
         "to-do": "todo",
         "backlog": "todo",
-        "pending": "todo",
+        "pending": "pending",
         "new": "todo",
         "in_progress": "in_progress",
         "in progress": "in_progress",
@@ -132,7 +132,24 @@ def parse_free_text_task(text: str) -> Dict[str, Any]:
     # C.1.1: Case-insensitive keyword detection
     first_line = lines[0].strip()
     if first_line and not re.match(r"^(plan|status|progress|priority|tags|notes):\s*", first_line, re.IGNORECASE):
-        result["title"] = first_line
+        # Check if first line contains status prefix [status] title
+        status_match = re.match(r"^\[([^\]]+)\]\s*(.*)", first_line)
+        if status_match:
+            status_text = status_match.group(1).strip().lower()
+            title_text = status_match.group(2).strip()
+            result["title"] = title_text
+            # Map status using the status_mapping
+            if status_text in status_mapping:
+                result["status"] = status_mapping[status_text]
+        # Check if first line contains inline plan (title: plan1, plan2, plan3)
+        elif ": " in first_line and not first_line.startswith("["):
+            title_part, plan_part = first_line.split(": ", 1)
+            result["title"] = title_part.strip()
+            # Parse plan part as comma-separated items
+            plan_items = [item.strip() for item in plan_part.split(",") if item.strip()]
+            result["plan"].extend(plan_items)
+        else:
+            result["title"] = first_line
         lines = lines[1:]
     
     # Process lines looking for keys and their values
@@ -168,7 +185,7 @@ def parse_free_text_task(text: str) -> Dict[str, Any]:
             elif current_key == "status":
                 # C.1.3: Status synonyms
                 status_value = value.lower().strip()
-                result["status"] = status_mapping.get(status_value, status_value)
+                result["status"] = status_mapping.get(status_value, "todo")
             elif current_key == "progress":
                 # C.1.5: Progress value cleaning
                 try:
@@ -177,15 +194,17 @@ def parse_free_text_task(text: str) -> Dict[str, Any]:
                     if progress_value:
                         # Handle decimal values
                         if "." in progress_value:
-                            result["progress"] = int(float(progress_value))
+                            parsed_progress = int(float(progress_value))
                         else:
-                            result["progress"] = int(progress_value)
+                            parsed_progress = int(progress_value)
+                        # Clamp progress to 0-100 range
+                        result["progress"] = max(0, min(100, parsed_progress))
                 except ValueError:
                     logging.warning(f"Couldn't parse progress value: {value}")
             elif current_key == "priority":
                 # C.1.4: Priority abbreviations
                 priority_value = value.lower().strip()
-                result["priority"] = priority_mapping.get(priority_value, priority_value)
+                result["priority"] = priority_mapping.get(priority_value, None)
             elif current_key == "tags" and value:
                 # C.1.6: Tag variations
                 tags = []
@@ -203,19 +222,26 @@ def parse_free_text_task(text: str) -> Dict[str, Any]:
                 
                 # Process remaining text for non-quoted tags
                 if remaining_text:
-                    # Check if comma-separated
+                    # Split by both commas and spaces to handle mixed formats
+                    # First split by comma, then each piece by spaces
+                    raw_tags = []
                     if "," in remaining_text:
-                        additional_tags = [t.strip() for t in remaining_text.split(",") if t.strip()]
+                        comma_parts = remaining_text.split(",")
+                        for part in comma_parts:
+                            # Each comma part might have space-separated tags
+                            raw_tags.extend(part.split())
                     else:
-                        # Space-separated
-                        additional_tags = [t.strip() for t in remaining_text.split() if t.strip()]
+                        # Space-separated only
+                        raw_tags = remaining_text.split()
                     
-                    # Clean tags (remove # if present)
-                    for tag in additional_tags:
-                        if tag.startswith("#"):
-                            tags.append(tag[1:])
-                        else:
-                            tags.append(tag)
+                    # Clean tags (remove # if present and filter empty)
+                    for tag in raw_tags:
+                        tag = tag.strip()
+                        if tag:
+                            if tag.startswith("#"):
+                                tags.append(tag[1:])
+                            else:
+                                tags.append(tag)
                 
                 result["tags"] = tags
             elif current_key == "notes" and value:
@@ -235,9 +261,7 @@ def parse_free_text_task(text: str) -> Dict[str, Any]:
     if not result["title"] and result["notes"]:
         result["title"] = result["notes"].pop(0)
     
-    # If we only have one note, convert from list to string for backward compatibility
-    if not result["notes"]:
-        result["notes"] = ""
+    # Keep notes as a list (don't convert to string)
     
     return result
 
@@ -341,10 +365,10 @@ def sync_task_vector(task_dict: Dict[str, Any]) -> None:
         task_dict: Task dictionary to synchronize
     """
     # Use add_or_replace from memory_utils to add/update the task vector
-    task_id = str(task_dict.get("id"))
+    task_id = task_dict.get("id")
     
     # Ensure we have a valid task ID
-    if task_id is None or task_id.lower() == "none" or not task_id:
+    if task_id is None or str(task_id).lower() == "none" or not str(task_id).strip():
         logging.error(f"Cannot sync task with invalid ID: {task_id}")
         return
     
@@ -582,12 +606,84 @@ def cmd_list(args, ts):
                     
             print("-" * 100)
 
-def cmd_complete_step(args):
-    task_store_instance = task_store.TaskStore()
-    task_id = int(args.id)
-    step_index = int(args.step_index)
+def complete_step_logic(task_id: int, step_index: int, unmark: bool, task_store_instance: task_store.TaskStore) -> Tuple[Optional[Dict[str, Any]], str]:
+    """
+    Logic for marking/unmarking a plan step as complete.
     
-    task_dict, message_code = complete_step_logic(task_id, step_index, args.unmark, task_store_instance)
+    Args:
+        task_id: ID of the task
+        step_index: 1-based index of the step in the plan
+        unmark: If True, unmark the step as incomplete
+        task_store_instance: TaskStore instance
+        
+    Returns:
+        Tuple of (task_dict or None, message_code)
+    """
+    task = task_store_instance.get_task_by_id(task_id)
+    if not task:
+        return None, "TASK_NOT_FOUND"
+    
+    if not task.plan:
+        return task.to_dict(), "NO_PLAN"
+    
+    if step_index < 1 or step_index > len(task.plan):
+        return task.to_dict(), "INVALID_STEP"
+    
+    step_text = task.plan[step_index - 1]
+    
+    if unmark:
+        # Unmark step as complete
+        if step_text not in task.done_steps:
+            return task.to_dict(), "ALREADY_UNMARKED"
+        
+        task.done_steps.remove(step_text)
+        
+        # Update progress
+        if task.plan:
+            task.progress = int((len(task.done_steps) / len(task.plan)) * 100)
+        
+        # Update status if needed
+        if task.status == "done" and task.progress < 100:
+            task.status = "in_progress"
+        
+        task.update_timestamps()
+        task_store_instance.update_task(task)
+        
+        # Sync to vector store
+        sync_task_vector(task.to_dict())
+        
+        return task.to_dict(), "STEP_UNMARKED"
+    else:
+        # Mark step as complete
+        if step_text in task.done_steps:
+            return task.to_dict(), "ALREADY_MARKED"
+        
+        task.done_steps.append(step_text)
+        
+        # Update progress
+        if task.plan:
+            task.progress = int((len(task.done_steps) / len(task.plan)) * 100)
+        
+        # Update status if all steps are done
+        if task.progress >= 100:
+            task.status = "done"
+        elif task.status == "todo":
+            task.status = "in_progress"
+        
+        task.update_timestamps()
+        task_store_instance.update_task(task)
+        
+        # Sync to vector store
+        sync_task_vector(task.to_dict())
+        
+        return task.to_dict(), "STEP_MARKED"
+
+def cmd_complete_step(args, ts):
+    """Mark/unmark a plan step as complete."""
+    task_id = args.id
+    step_index = args.step_index
+    
+    task_dict, message_code = complete_step_logic(task_id, step_index, args.unmark, ts)
     
     if not task_dict:
         if message_code == "TASK_NOT_FOUND":
@@ -717,11 +813,18 @@ def main(args=None):
         bump_parser.add_argument("delta", type=int, help="Progress delta (0-100)")
         bump_parser.set_defaults(func=cmd_bump)
         
+        # Complete step command
+        complete_step_parser = subparsers.add_parser("complete_step", help="Mark/unmark a plan step as done/pending")
+        complete_step_parser.add_argument("id", type=int, help="Task ID")
+        complete_step_parser.add_argument("step_index", type=int, help="1-based index of the plan step")
+        complete_step_parser.add_argument("--unmark", action="store_true", help="Unmark step as done, set to pending")
+        complete_step_parser.set_defaults(func=cmd_complete_step)
+        
         parsed_args = parser.parse_args(args)
         
         if not parsed_args.command:
             parser.print_help()
-            return
+            return 0
         
         # Create TaskStore instance once
         ts = task_store.TaskStore()
@@ -730,8 +833,10 @@ def main(args=None):
         if hasattr(parsed_args, 'func'):
             # Pass the TaskStore instance to all command functions
             parsed_args.func(parsed_args, ts)
+            return 0
         else:
             parser.print_help()
+            return 0
             
     except Exception as e:
         logging.error(f"An error occurred while executing command '{getattr(parsed_args, 'command', 'unknown')}': {e}")
